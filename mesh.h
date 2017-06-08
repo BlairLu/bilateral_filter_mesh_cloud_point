@@ -18,13 +18,16 @@ class Mesh
 {
 public:
     Mesh();
+    int vertCount();
+    int edgeCount();
+    int faceCount();
     
     void addEdge(HE_edge* e);
     void addVertex(HE_vert* v);
     void addFace(HE_face* f);
     void addTriangle(int vec[3]);
     void getEdge();
-   void getVertex(int index);
+    void getVertex(int index);
     void getFace();
     bool pairEdge(HE_edge* e);
 
@@ -53,7 +56,10 @@ public:
 
 	void bilateralFiltering(GLfloat sigmac, GLfloat sigmas,int iteration);
     void cpbilateralFiltering(GLfloat sigmac, GLfloat sigmas,int iteration);
-    void addNoise();
+    void addNoise(int noise_type);
+    vector<Vector3f> getVert();
+    vector<vector<int>> getFacet();
+  
     
 private:
     void setup_mesh();

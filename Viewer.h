@@ -16,9 +16,9 @@ const GLfloat ambientLightSource[] = {0.0, 0.0, 0.0, 1.0};
 
 class Viewer {
     GLUI_Checkbox    *checkbox;
-	GLUI_Panel       *panel_option, *panel_rendering;
+	GLUI_Panel       *panel_option, *panel_rendering,*panel_denoise;
     GLUI_Panel       *obj_panel2, *obj_panel3;
-    int obj_mode;
+    int obj_mode,noise_mode;
     int press_x, press_y;
     float x_angle;
     float y_angle;
@@ -42,9 +42,10 @@ class Viewer {
     
 public:
     Viewer();
-    Viewer(int argc, char** argv, Mesh* _m);
+    Viewer(int argc, char** argv, Mesh* _m,string fname);
     void createMenu();
     void startEngine();
+    
 };
 
 #endif /* Viewer_h */

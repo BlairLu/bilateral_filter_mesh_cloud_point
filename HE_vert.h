@@ -22,6 +22,7 @@ class HE_vert {
     Vector3f normal;
     Vector3f cpnormal;
 	Vector3f denpos;
+    int Order;
     //GLfloat x, y, z;
     //GLfloat nx, ny, nz;
     HE_edge* edge;
@@ -34,9 +35,14 @@ public:
     ~HE_vert();
     
     void addEdge(HE_edge* edge);
-    vector<HE_vert*> cloudpointGetneigh(vector<HE_vert*> Fulllist,HE_vert* vertex,Vector3f boxmax,Vector3f boxmin);
+    void cloudpointSetneigh(vector<HE_vert*> Fulllist,HE_vert* vertex,Vector3f boxmax,Vector3f boxmin);
+    vector<HE_vert*> cloudpointGetneigh();
+    
+    
     void setNormal(GLfloat nnx, GLfloat nny, GLfloat nnz);
 	void setDenpos(GLfloat ddx, GLfloat ddy, GLfloat ddz);
+    void setPosition(GLfloat ppx, GLfloat ppy, GLfloat ppz);
+    
     bool computeVertNormal();
     bool computeCPVertNormal(vector<HE_vert*> FullVert,HE_vert* TARGET,Vector3f boundarymax,Vector3f boundrymin);
     void addTempList(HE_edge* e, HE_vert* v2);
@@ -48,9 +54,15 @@ public:
     GLfloat getX();
     GLfloat getY();
     GLfloat getZ();
+    
+   
+    
     GLfloat getnX();
     GLfloat getnY();
     GLfloat getnZ();
+    
+    void SetOrder(int B);
+    int getOrder();
     
     GLfloat getcpnX();
     GLfloat getcpnY();

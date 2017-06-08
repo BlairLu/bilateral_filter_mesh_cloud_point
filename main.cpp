@@ -142,7 +142,7 @@ void readMFile(string filename)
     _mesh->computeNormal();
     _mesh->computeCloudPointNormal();
    
-    _mesh->addNoise();
+   // _mesh->addNoise();
     /*_mesh->releaseTempList();*/
 }
 
@@ -156,7 +156,7 @@ int main(int argc, char * argv[]) {
     readMFile(filename);       
     //readMFile();
     
-    Viewer* _viewer = new Viewer(argc, argv, _mesh);
+    Viewer* _viewer = new Viewer(argc, argv, _mesh,filename);
     _viewer->startEngine();
     _mesh->releaseTempList();
     

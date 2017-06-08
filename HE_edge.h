@@ -30,6 +30,7 @@ public:
     HE_vert* getVert();
     HE_edge* getNext();
     HE_edge* getPrev();
+    
 };
 
 #endif /* HE_edge_h */

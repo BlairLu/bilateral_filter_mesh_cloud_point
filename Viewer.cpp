@@ -5,7 +5,8 @@
 #include <GLUT/GLUT.h>
 #include <GLUI/GLUI.h>
 #include "Viewer.h"
-
+#include <fstream>
+#include <istream>
 
 #define OBJ_SOLID		0
 #define OBJ_POINTS		1
@@ -14,8 +15,17 @@
 
 #define DEN_ORIGINAL    0
 #define DEN_CLOUDPOINT	1
-#define DEN_DENOISED	2
-#define DEN_CPDENOISED	3
+#define DEN_ADDNOISE	2
+
+#define READYTOBF 0
+#define Mesh_BF 1
+#define CP_BF 2
+
+
+#define NOI_NON 99
+#define NOI_RAN 100
+#define NOI_EXT 101
+#define NOI_HAL 102
 
 #define ORTHOGRAPHIC  1
 #define PERSPECTIVE   0
@@ -38,6 +48,7 @@
 #define SIGMA_SIGMAS_ID  301
 #define ITERATION_ID     302
 
+#define NOISE_ID 400
 int control;
 /********** Miscellaneous global variables **********/
 //int   light0_enabled = 1;
@@ -48,20 +59,26 @@ int sigma_enabled = 0;
 int win;
 int drawbox = 0;
 int drawNormal = 0;
+int writeoff=0;
 
 int sigmac_val = 1;
 int sigmas_val = 1;
 int iteration = 1;
 
+int NOISE_VAL=NOI_NON;
+
+string fileName;
+
 GLUI_Spinner *spinner, *light0_spinner, *light1_spinner, *scale_spinner, *iteration_spinner;
+GLUI_Listbox *Noise_LIST;
 GLUI *glui;
 GLUI_RadioGroup *g1, *g2;
-GLUI_RadioGroup *radio_option, *radio_rendering;
+GLUI_RadioGroup *radio_option, *radio_rendering,*radio_denoise;
 
 GLUI_Spinner *sigmac_spinner, *sigmas_spinner;
 
 GLfloat light0_ambient[] =  {0.1f, 0.1f, 0.3f, 1.0f};
-GLfloat light0_diffuse[] =  {.6f, .6f, 1.0f, 1.0f};
+GLfloat light0_diffuse[] =  {1.0f, .2f, 0.2f, 1.0f};
 GLfloat light0_position[] = {.5f, .5f, 1.0f, 0.0f};
 
 GLfloat light1_ambient[] =  {0.1f, 0.1f, 0.3f, 1.0f};
@@ -75,7 +92,8 @@ static GLfloat y_angle = 0.0;
 static GLfloat scale_size = 1;
 GLfloat xShift;
 GLfloat yShift;
-int denoise_mode = DEN_ORIGINAL;
+int model_mode = DEN_ORIGINAL;
+int denoise_mode=READYTOBF;
 int obj_mode = 0;
 int proj_mode = 0;
 static int xform_mode = 0;
@@ -174,7 +192,53 @@ void drawAxis()
     glEnable(GL_LIGHTING);
 }
 
-Viewer::Viewer(int argc, char** argv, Mesh* _m)
+
+
+int writeOFF(string fn)
+{
+    string filename_off=fn;
+    int lengthnew=filename_off.length();
+    string newname=".off";
+    
+    filename_off.assign(fn,0,lengthnew-2);
+    filename_off+=newname;
+    FILE *fp = NULL;
+    if( (fp = fopen(filename_off.c_str(), "w")) == NULL)
+        return 0;
+    std::cout << "Printing denoised file... "<<filename_off <<std::endl;
+    ofstream fout(filename_off);
+    int vertnum,facenum,edgenum;
+    vertnum=_mm->vertCount();
+    facenum=_mm->faceCount();
+    edgenum=_mm->edgeCount();
+    vector<Vector3f> vertice1=_mm->getVert();
+   
+    vector<vector<int>> face1=_mm->getFacet();
+    
+    
+    if(fout){
+        fout<<"OFF"<<std::endl;
+        fout<<vertnum<<" "<<facenum<<" "<<edgenum<<std::endl;
+        
+        for(int i=0;i<vertnum;++i) {
+           
+            fout<<vertice1[i].getX()<<" "<<vertice1[i].getY()<<" "<<vertice1[i].getZ()<<std::endl;
+        }
+        for(int i=0;i<face1.size();++i)
+        {
+            fout<<"3 "<<face1[i][0]<<" "<<face1[i][1]<<" "<<face1[i][2]<<std::endl;
+        }
+    }
+    std::cout <<"printing finish"<< std::endl;
+    
+    return 1;
+}
+void Setfn(string l)
+{
+    fileName=l;
+}
+
+Viewer::Viewer(int argc, char** argv, Mesh* _m,string fName)
 {
     // normal initialisation
     glutInit(&argc, argv);
@@ -184,8 +248,9 @@ Viewer::Viewer(int argc, char** argv, Mesh* _m)
     glutInitWindowSize(500,500);
     glutInitWindowPosition(50,50);
     
-    win = glutCreateWindow("Mesh Viewer     @Blair_Lu");
+    win = glutCreateWindow("Mesh Viewer     @Lu Jinghan");
     createMenu();
+    Setfn(fName);
     _mm = _m;
 }
 
@@ -214,39 +279,48 @@ static void disp(void)
         _mm->drawNormal(x_angle, y_angle, xShift, yShift, scale_size);
     }
     
-    denoise_mode = radio_option->get_int_val();
-    switch (denoise_mode)
+    model_mode = radio_option->get_int_val();
+    switch (model_mode)
     {
         case DEN_ORIGINAL:
             sigmac_spinner->disable();
             sigmas_spinner->disable();
             iteration_spinner->disable();
+            Noise_LIST->disable();
             _mm->setDenoised(true);
-            radio_rendering->set_selected(OBJ_SOLID);
+            _mm->addNoise(NOI_NON);
             radio_rendering->enable();
-            _mm->addNoise();
+            radio_denoise->disable();
             break;
             
         case DEN_CLOUDPOINT:
             sigmac_spinner->disable();
             sigmas_spinner->disable();
             iteration_spinner->disable();
+            radio_denoise->disable();
+            Noise_LIST->disable();
             _mm->setDenoised(true);
            // _mm->addNoise();
             radio_rendering->set_selected(OBJ_POINTS);
             radio_rendering->disable();
             break;
             
-        case DEN_DENOISED:
+        case DEN_ADDNOISE:
+             Noise_LIST->enable();
+            radio_denoise->enable();
             sigmac_spinner->enable();
             sigmas_spinner->enable();
             iteration_spinner->enable();
-            //_mm->bilateralFiltering(sigmac_val, sigmas_val);
-            // _mm->addNoise();
+            _mm->setDenoised(true);
+            _mm->addNoise(NOISE_VAL);
+            break;
+            
+      /*  case DEN_DENOISED:
+            sigmac_spinner->enable();
+            sigmas_spinner->enable();
+            iteration_spinner->enable();
             _mm->setDenoised(true);  
             radio_rendering->enable();
-           
-            // _mm->bilateralFiltering((GLfloat)sigmac_val, (GLfloat)sigmas_val, iteration);
             _mm->bilateralFiltering(sigmac_val, sigmas_val,iteration);
              break;
             
@@ -254,20 +328,40 @@ static void disp(void)
             sigmac_spinner->enable();
             sigmas_spinner->enable();
             iteration_spinner->enable();
-            //_mm->bilateralFiltering(sigmac_val, sigmas_val);
-            // _mm->addNoise();
             _mm->setDenoised(true);
-            
-            // _mm->bilateralFiltering((GLfloat)sigmac_val, (GLfloat)sigmas_val, iteration);
-  
             _mm->cpbilateralFiltering(sigmac_val, sigmas_val,iteration);
             break;
-           
+           */
+        default:
+            break;
+    }
+    denoise_mode = radio_denoise->get_int_val();
+    switch (denoise_mode) {
+        case READYTOBF:
+            break;
+            
+        case Mesh_BF:
+            sigmac_spinner->enable();
+            sigmas_spinner->enable();
+            iteration_spinner->enable();
+            _mm->bilateralFiltering(sigmac_val, sigmas_val,iteration);
+            _mm->setDenoised(false);
+            break;
+            
+        case CP_BF:
+            sigmac_spinner->enable();
+            sigmas_spinner->enable();
+            iteration_spinner->enable();
+            _mm->cpbilateralFiltering(sigmac_val, sigmas_val,iteration);
+             _mm->setDenoised(false);
+            break;
+            
         default:
             break;
     }
     
-    if(denoise_mode==DEN_CLOUDPOINT)
+    
+    if(model_mode==DEN_CLOUDPOINT)
         obj_mode=OBJ_POINTS;
     else
         obj_mode = radio_rendering->get_int_val();
@@ -374,9 +468,22 @@ void Viewer::startEngine()
 }
 
 /* GLUI control callback */
-
+void output()
+{
+    writeoff=1;
+    writeOFF(fileName);
+}
+void clear()
+{
+    model_mode=DEN_ORIGINAL;
+    NOISE_VAL=NOI_NON;
+    obj_mode=OBJ_SOLID;
+    disp();
+    
+}
 void control_cb( int control )
 {
+    
     /*if ( control == LIGHT0_ENABLED_ID ) {
      if ( light0_enabled ) {
      glEnable( GL_LIGHT0 );
@@ -435,10 +542,10 @@ void Viewer::createMenu()
     glEnable( GL_NORMALIZE );
     
     glEnable(GL_LIGHT0);
-    glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
+   glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
     glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
     glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
-    
+   
     glLightfv(GL_LIGHT1, GL_AMBIENT, light1_ambient);
     glLightfv(GL_LIGHT1, GL_DIFFUSE, light1_diffuse);
     glLightfv(GL_LIGHT1, GL_POSITION, light1_position);
@@ -449,11 +556,19 @@ void Viewer::createMenu()
     glui = GLUI_Master.create_glui( "Mesh Viewer", 0, 550, 50 ); /* name, flags, x, and y */
     
     panel_option = new GLUI_Panel(glui, "Option");
-    radio_option = glui->add_radiogroup_to_panel(panel_option, &denoise_mode, 4, control_cb);
-    glui->add_radiobutton_to_group(radio_option, "Original");
-    glui->add_radiobutton_to_group(radio_option, "Cloud Point");
-    glui->add_radiobutton_to_group(radio_option, "Mesh Denoising");
-    glui->add_radiobutton_to_group(radio_option, "Cloud Point Denoising");
+    radio_option = glui->add_radiogroup_to_panel(panel_option, &model_mode, 3, control_cb);
+    glui->add_radiobutton_to_group(radio_option, "Mesh");
+    glui->add_radiobutton_to_group(radio_option, "Point Cloud");
+    glui->add_radiobutton_to_group(radio_option, "Add Noise");
+  //  glui->add_radiobutton_to_group(radio_option, "Cloud Point Denoising");
+    
+    panel_denoise = new GLUI_Panel(glui, "Denoising" );
+    radio_denoise = glui->add_radiogroup_to_panel(panel_denoise, &denoise_mode, 3, control_cb);
+    glui->add_radiobutton_to_group(radio_denoise, "Deoise");
+    glui->add_radiobutton_to_group(radio_denoise, "Mesh Deoise");
+    glui->add_radiobutton_to_group(radio_denoise, "Point Cloud Denoise");
+  
+   
     
     panel_rendering = new GLUI_Panel(glui, "Rendering" );
     radio_rendering = glui->add_radiogroup_to_panel(panel_rendering, &obj_mode, 4, control_cb);
@@ -462,21 +577,31 @@ void Viewer::createMenu()
     glui->add_radiobutton_to_group(radio_rendering, "Flat shading");
     glui->add_radiobutton_to_group(radio_rendering, "Wireframe");
     
+   
+    Noise_LIST=
+    new GLUI_Listbox(panel_option,"",&NOISE_VAL,NOISE_ID,control_cb);
+    
+    Noise_LIST->add_item( NOI_NON, "No Noise");
+    Noise_LIST->add_item( NOI_RAN, "Random Noise");
+    Noise_LIST->add_item( NOI_EXT, "Extreme Noise");
+    Noise_LIST->add_item( NOI_HAL, "Half Noise");
+    
     sigmac_spinner =
-    new GLUI_Spinner(panel_option, "sigmac:",
+    new GLUI_Spinner(panel_denoise, "sigmac:",
                      &sigmac_val, SIGMA_sigmac_ID,
                      control_cb);
     sigmac_spinner->set_float_limits(0, 16);
     sigmac_spinner->disable();
+    
     sigmas_spinner =
-    new GLUI_Spinner(panel_option, "sigmas:",
+    new GLUI_Spinner(panel_denoise, "sigmas:",
                      &sigmas_val, SIGMA_SIGMAS_ID,
                      control_cb);
     sigmas_spinner->set_float_limits(0, 16);
     sigmas_spinner->disable();
     
     iteration_spinner =
-    new GLUI_Spinner(panel_option, "iteration:",
+    new GLUI_Spinner(panel_denoise, "iteration:",
                      &iteration, ITERATION_ID,
                      control_cb);
     iteration_spinner->set_int_limits(1,5);
@@ -488,6 +613,9 @@ void Viewer::createMenu()
     glui->add_radiobutton_to_group(g2, "Perspective");
     glui->add_radiobutton_to_group(g2, "Orthographic");
     
+    
+    new GLUI_Button(glui, "Clear", 0,(GLUI_Update_CB)clear);
+      new GLUI_Button(glui, "Output .off", 0,(GLUI_Update_CB)output);
     new GLUI_Button(glui, "Quit", 0, (GLUI_Update_CB)exit);
     
     

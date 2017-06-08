@@ -29,8 +29,10 @@ void Mesh::addEdge(HE_edge* e)
 
 void Mesh::addVertex(HE_vert *v)
 {
-    
+    int lala=_vertices.size();
+    v->SetOrder(lala);
     _vertices.push_back(v);
+    
 }
 
 void Mesh::addFace(HE_face *f)
@@ -554,6 +556,7 @@ void Mesh::bilateralFiltering(GLfloat sigmac, GLfloat sigmas,int iteration)
         }
         GLfloat temp = sum / normalizer;
         vert->setDenpos(vert->getX() + vert->getnX() * temp, vert->getY() + vert->getnY() * temp, vert->getZ() + vert->getnZ() * temp);
+        vert->setPosition(vert->getX() + vert->getnX() * temp, vert->getY() + vert->getnY() * temp, vert->getZ() + vert->getnZ() * temp);
         /*tempV.setX(vert->getdX() + vert->getnX() * temp);
          tempV.setY(vert->getdY() + vert->getnY() * temp);
          tempV.setZ(vert->getdZ() + vert->getnZ() * temp);
@@ -591,7 +594,7 @@ void Mesh::cpbilateralFiltering(GLfloat sigmac, GLfloat sigmas,int iteration)
             
             /*vector<HE_vert*> neighbors = neighborhood(vert);*/
            
-            vector<HE_vert*> neighbors = vert->cloudpointGetneigh(_vertices,vert,max,min);
+            vector<HE_vert*> neighbors = vert->cloudpointGetneigh();
             GLfloat sum = 0, normalizer = 0;
             
             /*for(int it=0;it<iteration;it++){
@@ -620,6 +623,7 @@ void Mesh::cpbilateralFiltering(GLfloat sigmac, GLfloat sigmas,int iteration)
             }
             GLfloat temp = sum / normalizer;
          vert->setDenpos(vert->getX() + vert->getcpnX() * temp, vert->getY() + vert->getcpnY() * temp, vert->getZ() + vert->getcpnZ() * temp);
+            vert->setPosition(vert->getX() + vert->getcpnX() * temp, vert->getY() + vert->getcpnY() * temp, vert->getZ() + vert->getcpnZ() * temp);
             
             /*tempV.setX(vert->getdX() + vert->getnX() * temp);
              tempV.setY(vert->getdY() + vert->getnY() * temp);
@@ -632,22 +636,148 @@ void Mesh::cpbilateralFiltering(GLfloat sigmac, GLfloat sigmas,int iteration)
     }
 
 }
-
-void Mesh::addNoise()
+int Mesh::vertCount()
 {
+    return _vertices.size();
+}
+
+int Mesh::edgeCount()
+{
+    return _edges.size();
+}
+
+int Mesh::faceCount()
+{
+    return _faces.size();
+}
+
+
+
+vector<Vector3f> Mesh::getVert()
+{
+    vector<Vector3f> ans;
+    for(int i=0;i<_vertices.size();i++)
+    {
+        
+        GLfloat res1=_vertices.at(i)->getX();
+        GLfloat res2=_vertices.at(i)->getY();
+        GLfloat res3=_vertices.at(i)->getZ();
+        Vector3f res;
+        res.setX(res1);
+        res.setY(res2);
+        res.setZ(res3);
+        ans.push_back(res);
+    }
+    return ans;
+}
+vector<vector<int>> Mesh::getFacet()
+{
+    vector<vector<int>> Answer;
+    Mesh* _currMesh = new Mesh();
+    
+    
+    for(int i=0;i<_faces.size();i++)
+    {
+        HE_edge* first;
+        first=_faces.at(i)->getEdge();
+        HE_vert* firstV=first->getVert();
+        int v1=firstV->getOrder();
+        
+        
+        HE_edge *second,*second2;
+        second=_faces.at(i)->getEdge();
+        second2=second->getNext();
+        HE_vert* secondV=second2->getVert();
+        int v2=secondV->getOrder();
+        
+        HE_edge *third,*third2;
+        third=_faces.at(i)->getEdge();
+        third2=second->getPrev();
+        HE_vert* thirdV=third2->getVert();
+        int v3=thirdV->getOrder();
+        
+        vector<int> res;
+        res.push_back(v1);
+        res.push_back(v2);
+        res.push_back(v3);
+        Answer.push_back(res);
+    }
+    return Answer;
+}
+void Mesh::addNoise(int Noise_Type)
+{
+    
+    if(Noise_Type==99)
+    {
+        double distance;
+        for (int i = 0; i < _vertices.size(); i++) {
+            HE_vert * vert = _vertices.at(i);
+            
+            
+            distance = 0;
+            
+            //vert->updatePosition(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());
+            //设置点位置
+            vert->setDenpos(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());}
+    }
+    else if(Noise_Type==100)
+    {
     double distance;
     srand((unsigned)time(NULL));
     for (int i = 0; i < _vertices.size(); i++) {
         HE_vert * vert = _vertices.at(i);
         
-        //随机数范围-0.005~0.005
+        //随机数范围-0.005~0.005 
         distance = rand() / double(RAND_MAX);
-        distance = (distance - 0.8) / 2;
+        distance = (distance-0.8)/2;
         
         //vert->updatePosition(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());
         //设置点位置
         vert->setDenpos(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());
-        
     }
+    }
+    else if(Noise_Type==101)
+    {
+        double distance;
+        srand((unsigned)time(NULL));
+        int i;
+        i=_vertices.size()/2;
+        for(int j=0;j<10;j++,i++){
+            HE_vert * vert = _vertices.at(i);
+            
+            //随机数范围
+            distance = rand() / double(RAND_MAX)*2;
+            
+            
+            //vert->updatePosition(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());
+            //设置点位置
+            vert->setDenpos(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());}
+        }
+    
+    else if(Noise_Type==102)
+    {
+        double distance;
+        srand((unsigned)time(NULL));
+        for (int i = 0; i < _vertices.size(); i++) {
+            HE_vert * vert = _vertices.at(i);
+           
+            GLfloat separate=(aabb.xMax+aabb.xMin)*0.5;
+            
+            if(vert->getX()>separate)
+            //随机数范围-0.005~0.005
+            { distance = rand() / double(RAND_MAX);
+                distance = (distance - 0.5) ;}
+            else
+                distance=0;
+            
+            //vert->updatePosition(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());
+            //设置点位置
+                vert->setDenpos(vert->getX() + distance * vert->getnX(), vert->getY() + distance * vert->getnY(), vert->getZ() + distance * vert->getnZ());
+      
+        }
+        }
+ 
+    
+    
 }
 

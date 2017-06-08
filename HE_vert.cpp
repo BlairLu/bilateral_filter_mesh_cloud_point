@@ -8,7 +8,9 @@ HE_vert::HE_vert()
     position = Vector3f();
     normal = Vector3f();
 	denpos = Vector3f();
+    Order=0;
     edge = NULL;
+    
     std::vector<list*> tempList;
 }
 
@@ -46,7 +48,12 @@ void HE_vert::setDenpos(GLfloat ddx, GLfloat ddy, GLfloat ddz)
 	denpos.setY(ddy);
 	denpos.setZ(ddz);
 }
-
+void HE_vert::setPosition(GLfloat ppx, GLfloat ppy, GLfloat ppz)
+{
+    position.setX(ppx);
+    position.setY(ppy);
+    position.setZ(ppz);
+}
 
 void HE_vert::addTempList(HE_edge* edge, HE_vert* vert)
 {
@@ -54,6 +61,18 @@ void HE_vert::addTempList(HE_edge* edge, HE_vert* vert)
     ll->e = edge;
     ll->endvert = vert;
     tempList.push_back(ll);
+}
+void HE_vert::SetOrder(int tar)
+{
+    Order=tar;
+}
+
+int HE_vert::getOrder()
+{
+    int res;
+    res=Order;
+    return res;
+    
 }
 
 HE_edge* HE_vert::searchTempList(HE_vert *vert)
@@ -86,10 +105,10 @@ vector<HE_vert*> HE_vert::neighborhood()
 	return neighbors;
 }
 
-vector<HE_vert*> HE_vert::cloudpointGetneigh(vector<HE_vert*> fulllist,HE_vert* Vertex,Vector3f maxi,Vector3f mini)
+void HE_vert::cloudpointSetneigh(vector<HE_vert*> fulllist,HE_vert* Vertex,Vector3f maxi,Vector3f mini)
 {
     
-    vector<HE_vert*> cpneighbors;
+    
     vector<HE_vert*> tempneigh;
     GLfloat targetX=Vertex->getX();
     GLfloat targetY=Vertex->getY();
@@ -126,10 +145,17 @@ do{
     else if(number<6)
         radius=1.2*radius;
     }while(number>10||number<6);
-    cpneighbors=tempneigh;
+    cpneighs=tempneigh;
     
-    return cpneighbors;
+    
 }
+
+vector<HE_vert*> HE_vert::cloudpointGetneigh()
+{
+    return cpneighs;
+}
+
+
 
 bool HE_vert::computeVertNormal()
 {
@@ -169,8 +195,8 @@ bool HE_vert::computeCPVertNormal(vector<HE_vert*> fullvert,HE_vert *target,Vect
 {
   Vector3f* outcome = new Vector3f();
     GLfloat a=0,b=0,c=0;
-    
-    vector<HE_vert*> currNeighbors=target->cloudpointGetneigh(fullvert, target,boundmax,boundmin);
+    target->cloudpointSetneigh(fullvert, target,boundmax,boundmin);
+    vector<HE_vert*> currNeighbors=target->cloudpointGetneigh();
     GLfloat A11=0,A12=0,A13=0,A21=0,A22=0,A23=0,A31=0,A32=0,A33=0;
     for(int order=0;order<currNeighbors.size();order++)
     {
